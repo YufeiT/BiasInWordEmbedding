@@ -1,6 +1,5 @@
 import numpy as np
-import pandas as pd
-import csv
+from gensim.scripts.glove2word2vec import glove2word2vec, KeyedVectors
 
 
 def load_word_embedding():
@@ -18,5 +17,15 @@ def load_word_embedding():
     return glove_model
 
 
+def gensim_convert_golve_to_wrod2vec():
+    print("Loading Glove Model in gensim_convert_golve_to_wrod2vec")
+    glove2word2vec(glove_input_file="glove.6B.300d.txt", word2vec_output_file="gensim_glove_vectors.txt")
+    glove_model = KeyedVectors.load_word2vec_format("gensim_glove_vectors.txt", binary=False)
+    print(glove_model['hello'])
+    return glove_model
+
+
 if __name__ == "__main__":
     load_word_embedding()
+    print("--------------------------------------------------------------")
+    gensim_convert_golve_to_wrod2vec()
