@@ -2,6 +2,7 @@ import numpy as np
 from gensim.models.deprecated.keyedvectors import KeyedVectors
 from gensim.scripts import glove2word2vec
 from itertools import permutations
+from hard_debias.word_embedding import WordEmbedding
 
 
 def gensim_convert_golve_to_wrod2vec():
@@ -17,6 +18,7 @@ def import_em():
     model = KeyedVectors.load_word2vec_format('embedding/GoogleNews-vectors-negative300.bin', binary=True)
     model.save_word2vec_format('embedding/GoogleNews-vectors-negative300.txt', binary=False)
     print(model['nurse'])
+
 
 # target_words has pairs of sets X and Y which are words associated with concepts suspected to be biased
 # towards one gender or another, i.e. Career vs. Family or science vs. arts
@@ -76,9 +78,9 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
     return p_values
 
 
-
 if __name__ == "__main__":
-    # load_word_embedding()
-    print("--------------------------------------------------------------")
-    # gensim_convert_golve_to_wrod2vec()
-    import_em()
+    file_path = 'debiased_we/double_hd_we.txt'
+    definitional_pairs = 'hard_debias/data/definitional_pairs.json'
+    target_words = ["Career", "science", "arts"]
+    E = WordEmbedding(file_path)
+    w2v_weat_eval(E, definitional_pairs, target_words)
