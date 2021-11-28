@@ -133,3 +133,9 @@ dmypy.json
 .idea/misc.xml
 .idea/modules.xml
 embedding/w2v_gnews_small.txt
+.idea/vcs.xml
+.idea/BiasInWordEmbedding.iml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+embedding/w2v_gnews_small.txt
