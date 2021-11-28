@@ -30,7 +30,7 @@ if __name__ == "__main__":
     definitional_filename = 'data/definitional_pairs.json'
     gendered_words_filename = 'data/gender_specific_full.json'
     equalize_filename = 'data/equalize_pairs.json'
-    debiased_filename = 'debiased_we/debiased_em.txt'
+    debiased_filename = '../debiased_we/hd_em.txt'
 
     with open(definitional_filename, "r") as f:
         defs = json.load(f)
