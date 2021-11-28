@@ -146,7 +146,7 @@ def doPCA(pairs, wv, w2i):
     matrix = np.array(matrix)
     pca = PCA()
     pca.fit(matrix)
-    print('pairs used in PCA: ', cnt)
+    # print('pairs used in PCA: ', cnt)
     return pca
 
 # get tuples of biases and counts of masculine/feminine NN for each word (for bias-by-neighbors)

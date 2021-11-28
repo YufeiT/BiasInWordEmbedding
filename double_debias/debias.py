@@ -1,78 +1,36 @@
-import codecs, os, json, operator, pickle
-from random import shuffle
-
-import gensim
 import numpy as np
-from gensim.models import KeyedVectors
-from numpy import linalg as LA
-import scipy
-import json
-from tqdm import tqdm
-from utils import limit_vocab, doPCA, drop
-# Restrict Vocabulary
-import json
-from tqdm import tqdm
 from utils import limit_vocab
-#debias
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 from utils import extract_vectors
-from utils import train_and_predict
 from utils import doPCA, drop
-
-import codecs
-from numpy import linalg as LA
 import scipy
-import codecs, os, json
+import codecs, json
 import operator
-import pickle
 
 
-# def load_glove(path):
-#     with open(path) as f:
-#         lines = f.readlines()
-#
-#     wv = []
-#     vocab = []
-#     for line in lines:
-#         tokens = line.strip().split(" ")
-#         assert len(tokens) == 301
-#         vocab.append(tokens[0])
-#         wv.append([float(elem) for elem in tokens[1:]])
-#     w2i = {w: i for i, w in enumerate(vocab)}
-#     wv = np.array(wv).astype(float)
-#     print(len(vocab), wv.shape, len(w2i))
-#
-#     return wv, w2i, vocab
-#
-#
-# wv, w2i, vocab = load_glove('./data/vectors.txt')
+def load_glove(path):
+    print("Loading word embedding...")
+    with open(path) as f:
+        lines = f.readlines()
 
-
-file_path_wv = '../embeddings/GoogleNews-vectors-negative300.bin'
-# file_path_hd = './data/GoogleNews-vectors-negative300-hard-debiased.bin'
-
-def normalize(wv):
-    # normalize vectors
-    norms = np.apply_along_axis(LA.norm, 1, wv)
-    wv = wv / norms[:, np.newaxis]
-    return wv
-
-
-def load_w2v(file_path):
-    model = KeyedVectors.load_word2vec_format(file_path, binary=True)
-    vocab = sorted([w for w in model.vocab], key=lambda w: model.vocab[w].index)
+    wv = []
+    vocab = []
+    for line in lines:
+        tokens = line.strip().split(" ")
+        assert len(tokens) == 301
+        vocab.append(tokens[0])
+        wv.append([float(elem) for elem in tokens[1:]])
     w2i = {w: i for i, w in enumerate(vocab)}
-    wv = [model[w] for w in vocab]
-    wv = np.array(wv)
+    wv = np.array(wv).astype(float)
+    # n, d = wv.shape
     print(len(vocab), wv.shape, len(w2i))
+
     return wv, w2i, vocab
 
-wv, w2i, vocab = load_w2v(file_path_wv)
 
-# Restrict Vocabulary
-
+wv, w2i, vocab = load_glove('../embedding/w2v_gnews_small.txt')
 
 gender_specific = []
 with open('./data/male_word_file.txt') as f:
@@ -94,14 +52,16 @@ for pair in definitional_pairs:
         definitional_words.append(word)
 
 exclude_words = gender_specific
-vocab_limit, wv_limit, w2i_limit = limit_vocab(wv, w2i, vocab, exclude = exclude_words)
+vocab_limit, wv_limit, w2i_limit = limit_vocab(wv, w2i, vocab, exclude=exclude_words)
 
-#compute original
+# compute original
 he_embed = wv[w2i['he'], :]
 she_embed = wv[w2i['she'], :]
 
+
 def simi(a, b):
-    return 1-scipy.spatial.distance.cosine(a, b)
+    return 1 - scipy.spatial.distance.cosine(a, b)
+
 
 def compute_bias_by_projection(wv, w2i, vocab):
     d = {}
@@ -110,11 +70,11 @@ def compute_bias_by_projection(wv, w2i, vocab):
         d[w] = simi(u, he_embed) - simi(u, she_embed)
     return d
 
+
 gender_bias_bef = compute_bias_by_projection(wv_limit, w2i_limit, vocab_limit)
 
-#debias
 
-
+# debias
 # get main PCA components
 def my_pca(wv):
     wv_mean = np.mean(np.array(wv), axis=0)
@@ -164,9 +124,6 @@ def hard_debias(wv, w2i, w2i_partial, vocab_partial, component_ids):
     return wv_debiased
 
 
-
-
-
 def cluster_and_visualize(words, X, random_state, y_true, num=2):
     kmeans = KMeans(n_clusters=num, random_state=random_state).fit(X)
     y_pred = kmeans.predict(X)
@@ -175,8 +132,6 @@ def cluster_and_visualize(words, X, random_state, y_true, num=2):
     print('precision', preci)
 
     return kmeans, y_pred, X, preci
-
-
 
 
 size = 1000
@@ -193,28 +148,33 @@ for idx, w in enumerate(c_vocab):
 precisions = []
 
 for component_id in range(20):
-    print('component id: ', component_id)
+    # print('component id: ', component_id)
 
     wv_debiased = hard_debias(wv, w2i, w2i_partial=c_w2i, vocab_partial=c_vocab, component_ids=[component_id])
-    _, _, _, preci = cluster_and_visualize(male + female,
-                                           extract_vectors(male + female, wv_debiased, c_w2i), 1, y_true)
-    precisions.append(preci)
+    # _, _, _, preci = cluster_and_visualize(male + female,
+    #                                        extract_vectors(male + female, wv_debiased, c_w2i), 1, y_true)
+    # precisions.append(preci)
 
-# Create some mock data
-t = np.arange(1, 21)
-data1 = precisions
+filename = './debiased_we/dhd_we.txt'
+with open(filename, "w") as f:
+    f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv)]))
+print("Wrote", wv.shape[0], "words to", filename)
 
-fig, ax1 = plt.subplots(figsize=(6,2.8))
-
-color = 'red'
-ax1.set_xlabel('Project out the D-th directions', fontsize=17)
-ax1.set_ylabel('accuracy', fontsize=17)
-ax1.scatter(t, data1, color=color, label='GloVe', marker = 'x', s=60)
-plt.xticks([2,4,6,8,10, 12, 14, 16 ,18, 20], fontsize=15)
-ax1.tick_params(axis='y', labelsize=14)
-ax1.set_ylim(0.65, 0.84)
-ax1.legend(loc='lower right', frameon=True, fontsize='large')
-ax1.grid(axis='y')
-
-fig.tight_layout()  # otherwise the right y-label is slightly clipped
-plt.show()
+# # Create some mock data
+# t = np.arange(1, 21)
+# data1 = precisions
+#
+# fig, ax1 = plt.subplots(figsize=(6, 2.8))
+#
+# color = 'red'
+# ax1.set_xlabel('Project out the D-th directions', fontsize=17)
+# ax1.set_ylabel('accuracy', fontsize=17)
+# ax1.scatter(t, data1, color=color, label='GloVe', marker='x', s=60)
+# plt.xticks([2, 4, 6, 8, 10, 12, 14, 16, 18, 20], fontsize=15)
+# ax1.tick_params(axis='y', labelsize=14)
+# ax1.set_ylim(0.65, 0.84)
+# ax1.legend(loc='lower right', frameon=True, fontsize='large')
+# ax1.grid(axis='y')
+#
+# fig.tight_layout()  # otherwise the right y-label is slightly clipped
+# plt.show()
