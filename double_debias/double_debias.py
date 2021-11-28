@@ -155,7 +155,7 @@ for component_id in range(20):
     #                                        extract_vectors(male + female, wv_debiased, c_w2i), 1, y_true)
     # precisions.append(preci)
 
-filename = './debiased_we/dhd_we.txt'
+filename = '../debiased_we/double_hd_we.txt'
 with open(filename, "w") as f:
     f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv)]))
 print("Wrote", wv.shape[0], "words to", filename)
