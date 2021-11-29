@@ -3,6 +3,10 @@ from gensim.models.deprecated.keyedvectors import KeyedVectors
 from gensim.scripts import glove2word2vec
 from itertools import permutations
 from hard_debias.word_embedding import WordEmbedding
+from scipy.spatial.distance import cosine
+from sklearn.cluster import KMeans
+import json
+import random
 
 
 def gensim_convert_golve_to_wrod2vec():
@@ -29,9 +33,9 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
         male_sum = 0
         female_sum = 0
         for mword in male:
-            male_sum += np.cos(E.v(word), E.v(mword))
+            male_sum += cosine(E.v(word), E.v(mword))
         for fword in female:
-            female_sum += np.cos(E.v(word), E.v(fword))
+            female_sum += cosine(E.v(word), E.v(fword))
         return ((1 / (len(male))) * male_sum) - ((1 / (len(female))) * female_sum)
 
     # takes definitional pairs and splits them into sets for each gender
@@ -54,33 +58,44 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
             s1_sum += moa(word, mwords, fwords)
         for word in s2:
             s2_sum += moa(word, mwords, fwords)
-        return s1_sum, s2_sum
-
-    # creates permutations of the union set where
-    def create_partitions(union_set):
-        permutation = permutations(union_set)
-        part = list()
-        for perm in permutation:
-            part.append((perm[:len(perm) // 2], perm[len(perm) // 2:]))
-        return part
+        return s1_sum - s2_sum
 
     mwords, fwords = build_gendered_lists(definitional_pairs)
     p_values = []
+    num_runs = 100
     for pair in target_words:
         test_statistic_greater = 0
         o_sum = find_test_statistic(pair, mwords, fwords)  # observed test statistic
-        partitions = create_partitions(pair[1].union(pair[0]))
-        for partition in partitions:
-            t_sum = find_test_statistic(partition, mwords, fwords)
-            if (o_sum < t_sum):
-                test_statistic_greater += 1
-        p_values.append(test_statistic_greater / len(partitions))
+        seen = set()
+        union_set = pair[0] + pair[1]
+        # for partition in partitions:
+        for i in range(num_runs):
+            perm = tuple(random.sample(union_set, len(union_set)))
+            part = (perm[:len(perm) // 2], perm[len(perm) // 2:])
+            if part not in seen:
+                t_sum = find_test_statistic(part, mwords, fwords)
+                print(part)
+                print(o_sum, t_sum)
+                if (o_sum < t_sum):
+                    test_statistic_greater += 1
+                seen.add(part)
+        p_values.append(test_statistic_greater / num_runs) # temp for testing
+        # p_values.append(test_statistic_greater / len(partitions))
     return p_values
 
+def find_target_words(E, clusters):
+    model = KMeans(n_clusters=clusters).fit(E)
+
+    pass
 
 if __name__ == "__main__":
     file_path = 'debiased_we/double_hd_we.txt'
-    definitional_pairs = 'hard_debias/data/definitional_pairs.json'
-    target_words = ["Career", "science", "arts"]
+    definitional_filename = 'hard_debias/data/definitional_pairs.json'
+
+    with open(definitional_filename, "r") as f:
+        defs = json.load(f)
+
+    target_words = [(['executive', 'management', 'professional', 'corporation', 'salary'], ['home', 'parents', 'children', 'family', 'cousins']), (), ()]
     E = WordEmbedding(file_path)
-    w2v_weat_eval(E, definitional_pairs, target_words)
+    p_values = w2v_weat_eval(E, defs, target_words)
+    print(p_values)
