@@ -1,7 +1,7 @@
 import numpy as np
-from gensim.models.deprecated.keyedvectors import KeyedVectors
+from gensim.models import KeyedVectors
+from gensim.test.utils import datapath
 from gensim.scripts import glove2word2vec
-from itertools import permutations
 from hard_debias.word_embedding import WordEmbedding
 from scipy.spatial.distance import cosine
 from sklearn.cluster import KMeans
@@ -62,7 +62,61 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
 
     mwords, fwords = build_gendered_lists(definitional_pairs)
     p_values = []
-    num_runs = 10000
+    num_runs = 100
+    for iter, pair in enumerate(target_words):
+        print(iter)
+        test_statistic_greater = 0
+        o_sum = find_test_statistic(pair, mwords, fwords)  # observed test statistic
+        seen = set()
+        union_set = pair[0] + pair[1]
+        # for partition in partitions:
+        for i in range(num_runs):
+            perm = tuple(random.sample(union_set, len(union_set)))
+            part = (perm[:len(perm) // 2], perm[len(perm) // 2:])
+            if part not in seen:
+                t_sum = find_test_statistic(part, mwords, fwords)
+                if o_sum < t_sum:
+                    test_statistic_greater += 1
+                seen.add(part)
+        p_values.append(test_statistic_greater / num_runs) # temp for testing
+        # p_values.append(test_statistic_greater / len(partitions))
+    return p_values
+
+def w2v_weat_eval_test(E, definitional_pairs, target_words):
+    def moa(word, male, female):  # measure of association
+        male_sum = 0
+        female_sum = 0
+        for mword in male:
+            male_sum += cosine(E.get_vector(word), E.get_vector(mword))
+        for fword in female:
+            female_sum += cosine(E.get_vector(word), E.get_vector(fword))
+        return ((1 / (len(male))) * male_sum) - ((1 / (len(female))) * female_sum)
+
+    # takes definitional pairs and splits them into sets for each gender
+    def build_gendered_lists(def_pairs):
+        mwords = set()
+        fwords = set()
+        for pair in def_pairs:
+            mwords.add(pair[0])
+            fwords.add(pair[1])
+        return mwords, fwords
+
+    # finds the test statistic, which we use to obtain the probability that
+    # the word embedding is biased for the given subject
+    def find_test_statistic(pair, mwords, fwords):
+        s1 = pair[0]  # subject one
+        s2 = pair[1]  # subject two
+        s1_sum = 0  # test statistic
+        s2_sum = 0
+        for word in s1:
+            s1_sum += moa(word, mwords, fwords)
+        for word in s2:
+            s2_sum += moa(word, mwords, fwords)
+        return s1_sum - s2_sum
+
+    mwords, fwords = build_gendered_lists(definitional_pairs)
+    p_values = []
+    num_runs = 100
     for iter, pair in enumerate(target_words):
         print(iter)
         test_statistic_greater = 0
@@ -88,7 +142,7 @@ def find_target_words(E, clusters):
     pass
 
 if __name__ == "__main__":
-    test_file_path = "embedding/gap-full.bin"
+    test_file_path = "embedding/GoogleNews-vectors-negative300.bin"
     we_file_path = "embedding/w2v_gnews_small.txt"
     hwe_file_path = "debiased_we/hd_em.txt"
     dhwe_file_path = "debiased_we/double_hd_we.txt"
@@ -100,16 +154,20 @@ if __name__ == "__main__":
     with open(tw_filename, 'r') as f:
         target_words = json.load(f)
 
-    # E = WordEmbedding(we_file_path)
-    # p_values = w2v_weat_eval(E, defs, target_words)
-    # print(p_values) # save somewhere?
+    E = KeyedVectors.load_word2vec_format(test_file_path, binary=True, unicode_errors='ignore')
+    p_values = w2v_weat_eval_test(E, defs, target_words)
+    print(p_values)
 
-    # E = WordEmbedding(hwe_file_path)
-    # p_values = w2v_weat_eval(E, defs, target_words)
-    # print(p_values)  # save somewhere?
+    E = WordEmbedding(we_file_path)
+    p_values = w2v_weat_eval(E, defs, target_words)
+    print(p_values) # save somewhere?
 
-    # E = WordEmbedding(dhwe_file_path)
-    # p_values = w2v_weat_eval(E, defs, target_words)
-    # print(p_values)  # save somewhere?
+    E = WordEmbedding(hwe_file_path)
+    p_values = w2v_weat_eval(E, defs, target_words)
+    print(p_values)  # save somewhere?
+
+    E = WordEmbedding(dhwe_file_path)
+    p_values = w2v_weat_eval(E, defs, target_words)
+    print(p_values)  # save somewhere?
 
 
