@@ -33,10 +33,10 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
         male_sum = 0
         female_sum = 0
         for mword in male:
-            male_sum += cosine(E.v(word), E.v(mword))
+            male_sum += 1 - cosine(E.v(word), E.v(mword))
         for fword in female:
-            female_sum += cosine(E.v(word), E.v(fword))
-        return ((1 / (len(male))) * male_sum) - ((1 / (len(female))) * female_sum)
+            female_sum += 1 - cosine(E.v(word), E.v(fword))
+        return (male_sum/len(male)) - (female_sum/len(female))
 
     # takes definitional pairs and splits them into sets for each gender
     def build_gendered_lists(def_pairs):
@@ -62,24 +62,22 @@ def w2v_weat_eval(E, definitional_pairs, target_words):
 
     mwords, fwords = build_gendered_lists(definitional_pairs)
     p_values = []
-    num_runs = 100
+    num_runs = 10000
     for iter, pair in enumerate(target_words):
         print(iter)
         test_statistic_greater = 0
         o_sum = find_test_statistic(pair, mwords, fwords)  # observed test statistic
         seen = set()
         union_set = pair[0] + pair[1]
-        # for partition in partitions:
         for i in range(num_runs):
             perm = tuple(random.sample(union_set, len(union_set)))
-            part = (perm[:len(perm) // 2], perm[len(perm) // 2:])
-            if part not in seen:
+            if perm not in seen:
+                part = (perm[:len(pair[0])], perm[len(pair[1]):])
                 t_sum = find_test_statistic(part, mwords, fwords)
                 if o_sum < t_sum:
                     test_statistic_greater += 1
-                seen.add(part)
-        p_values.append(test_statistic_greater / num_runs) # temp for testing
-        # p_values.append(test_statistic_greater / len(partitions))
+                seen.add(perm)
+        p_values.append(test_statistic_greater / num_runs)  # temp for testing
     return p_values
 
 def w2v_weat_eval_test(E, definitional_pairs, target_words):
@@ -87,10 +85,10 @@ def w2v_weat_eval_test(E, definitional_pairs, target_words):
         male_sum = 0
         female_sum = 0
         for mword in male:
-            male_sum += cosine(E.get_vector(word), E.get_vector(mword))
+            male_sum += 1 - cosine(E.get_vector(word), E.get_vector(mword))
         for fword in female:
-            female_sum += cosine(E.get_vector(word), E.get_vector(fword))
-        return ((1 / (len(male))) * male_sum) - ((1 / (len(female))) * female_sum)
+            female_sum += 1 - cosine(E.get_vector(word), E.get_vector(fword))
+        return (male_sum/len(male)) - (female_sum/len(female))
 
     # takes definitional pairs and splits them into sets for each gender
     def build_gendered_lists(def_pairs):
@@ -116,25 +114,25 @@ def w2v_weat_eval_test(E, definitional_pairs, target_words):
 
     mwords, fwords = build_gendered_lists(definitional_pairs)
     p_values = []
-    num_runs = 100
+    num_runs = 10000
     for iter, pair in enumerate(target_words):
         print(iter)
         test_statistic_greater = 0
         o_sum = find_test_statistic(pair, mwords, fwords)  # observed test statistic
         seen = set()
         union_set = pair[0] + pair[1]
-        # for partition in partitions:
         for i in range(num_runs):
             perm = tuple(random.sample(union_set, len(union_set)))
-            part = (perm[:len(perm) // 2], perm[len(perm) // 2:])
-            if part not in seen:
+            if perm not in seen:
+                part = (perm[:len(pair[0])], perm[len(pair[1]):])
                 t_sum = find_test_statistic(part, mwords, fwords)
                 if o_sum < t_sum:
                     test_statistic_greater += 1
-                seen.add(part)
-        p_values.append(test_statistic_greater / num_runs) # temp for testing
-        # p_values.append(test_statistic_greater / len(partitions))
+                seen.add(perm)
+        p_values.append(test_statistic_greater / num_runs)  # temp for testing
     return p_values
+
+
 
 def find_target_words(E, clusters):
     model = KMeans(n_clusters=clusters).fit(E)
@@ -154,9 +152,9 @@ if __name__ == "__main__":
     with open(tw_filename, 'r') as f:
         target_words = json.load(f)
 
-    E = KeyedVectors.load_word2vec_format(test_file_path, binary=True, unicode_errors='ignore')
-    p_values = w2v_weat_eval_test(E, defs, target_words)
-    print(p_values)
+    # E = KeyedVectors.load_word2vec_format(test_file_path, binary=True, unicode_errors='ignore')
+    # p_values = w2v_weat_eval_test(E, defs, target_words)
+    # print(p_values)
 
     E = WordEmbedding(we_file_path)
     p_values = w2v_weat_eval(E, defs, target_words)
