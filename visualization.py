@@ -74,25 +74,7 @@ if __name__ == "__main__":
     cluster_and_visualize(male + female, extract_vectors(male + female, E), 'Original w2v Google News', random_state, tsne_random_state, y_true)
 
     E = WordEmbedding(hwe_file_path)
-    gender_bias_bef = compute_bias_by_projection(E)
-    sorted_g = sorted(gender_bias_bef.items(), key=operator.itemgetter(1))
-
-    size = 500
-    random_state = 0
-    tsne_random_state = 2
-    female = [item[0] for item in sorted_g[:size]]
-    male = [item[0] for item in sorted_g[-size:]]
-    y_true = [1] * size + [0] * size
     cluster_and_visualize(male + female, extract_vectors(male + female, E), 'Hard Debiased w2v Google News', random_state, tsne_random_state, y_true)
 
     E = WordEmbedding(dhwe_file_path)
-    gender_bias_bef = compute_bias_by_projection(E)
-    sorted_g = sorted(gender_bias_bef.items(), key=operator.itemgetter(1))
-
-    size = 500
-    random_state = 0
-    tsne_random_state = 2
-    female = [item[0] for item in sorted_g[:size]]
-    male = [item[0] for item in sorted_g[-size:]]
-    y_true = [1] * size + [0] * size
     cluster_and_visualize(male + female, extract_vectors(male + female, E), 'Double Hard Debiased w2v Google News', random_state, tsne_random_state, y_true)
