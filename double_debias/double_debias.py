@@ -157,7 +157,7 @@ for component_id in range(20):
 
 filename = '../debiased_we/double_hd_we.txt'
 with open(filename, "w") as f:
-    f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv)]))
+    f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv_debiased)]))
 print("Wrote", wv.shape[0], "words to", filename)
 
 # # Create some mock data
