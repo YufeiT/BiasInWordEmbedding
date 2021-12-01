@@ -8,6 +8,18 @@ from scipy.spatial.distance import cosine
 import operator
 
 
+def merge_dhd_hd(E, DHE):
+    dh_index = DHE.get_index()
+    dh_vectors = DHE.get_matrix()
+
+    final_matrix = E.get_matrix()
+    h_index = E.get_index()
+
+    for word in dh_index.keys():
+        final_matrix[h_index[word]] = dh_vectors[dh_index[word]]
+    return final_matrix, h_index
+
+
 def normalize(wv):
     norms = np.apply_along_axis(LA.norm, 1, wv)
     wv = wv / norms[:, np.newaxis]
@@ -48,13 +60,15 @@ def cluster_and_visualize(words, X1, title, random_state, tsne_random_state, y_t
     fig, axs = plt.subplots(1, 1, figsize=(6, 3))
     ax1 = visualize(X1, y_true, y_pred_1, axs, title, tsne_random_state)
 
-    fig.savefig("a_{}_{}_{}.pdf".format(title, size, random_state))
+    fig.savefig("a_{}_{}_{}.png".format(title, size, random_state))
+
 
 def extract_vectors(words, E):
     m = np.empty(shape=(1000, 300), dtype=float, order='C')
     for i, word in enumerate(words):
         m[i] = E.v(word)
     return m
+
 
 if __name__ == "__main__":
     we_file_path = "embedding/w2v_gnews_small.txt"
@@ -76,5 +90,9 @@ if __name__ == "__main__":
     E = WordEmbedding(hwe_file_path)
     cluster_and_visualize(male + female, extract_vectors(male + female, E), 'Hard Debiased w2v Google News', random_state, tsne_random_state, y_true)
 
-    E = WordEmbedding(dhwe_file_path)
-    cluster_and_visualize(male + female, extract_vectors(male + female, E), 'Double Hard Debiased w2v Google News', random_state, tsne_random_state, y_true)
+    DHE = WordEmbedding(dhwe_file_path)
+    matrix, index = merge_dhd_hd(E, DHE)
+    DHE.overwrite_index(index)
+    DHE.overwrite_matrix(matrix)
+    cluster_and_visualize(male + female, extract_vectors(male + female, DHE), 'Double Hard Debiased w2v Google News',
+                          random_state, tsne_random_state, y_true)

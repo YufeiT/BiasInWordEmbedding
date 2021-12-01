@@ -8,6 +8,16 @@ from sklearn.cluster import KMeans
 import json
 import random
 
+def merge_dhd_hd(E, DHE):
+    dh_index = DHE.get_index()
+    dh_vectors = DHE.get_matrix()
+
+    final_matrix = E.get_matrix()
+    h_index = E.get_index()
+
+    for word in dh_index.keys():
+        final_matrix[h_index[word]] = dh_vectors[dh_index[word]]
+    return final_matrix, h_index
 
 def gensim_convert_golve_to_wrod2vec():
     print("Loading Glove Model in gensim_convert_golve_to_wrod2vec")
@@ -156,16 +166,19 @@ if __name__ == "__main__":
     # p_values = w2v_weat_eval_test(E, defs, target_words)
     # print(p_values)
 
-    E = WordEmbedding(we_file_path)
-    p_values = w2v_weat_eval(E, defs, target_words)
-    print(p_values) # save somewhere?
+    # E = WordEmbedding(we_file_path)
+    # p_values = w2v_weat_eval(E, defs, target_words)
+    # print(p_values) # save somewhere?
 
-    E = WordEmbedding(hwe_file_path)
-    p_values = w2v_weat_eval(E, defs, target_words)
-    print(p_values)  # save somewhere?
+    HE = WordEmbedding(hwe_file_path)
+    # p_values = w2v_weat_eval(E, defs, target_words)
+    # print(p_values)  # save somewhere?
 
-    E = WordEmbedding(dhwe_file_path)
-    p_values = w2v_weat_eval(E, defs, target_words)
+    DHE = WordEmbedding(dhwe_file_path)
+    matrix, index = merge_dhd_hd(HE, DHE)
+    DHE.overwrite_matrix(matrix)
+    DHE.overwrite_index(index)
+    p_values = w2v_weat_eval(DHE, defs, target_words)
     print(p_values)  # save somewhere?
 
 

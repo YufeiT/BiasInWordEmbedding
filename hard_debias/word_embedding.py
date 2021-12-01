@@ -59,6 +59,12 @@ class WordEmbedding:
     def get_index(self):
         return self.index
 
+    def overwrite_matrix(self, matrix):
+        self.vecs = matrix
+
+    def overwrite_index(self, index):
+        self.index = index
+
     def reindex(self):
         self.index = {w: i for i, w in enumerate(self.words)}
         self.n, self.d = self.vecs.shape
