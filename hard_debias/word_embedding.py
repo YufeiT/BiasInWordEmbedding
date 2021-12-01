@@ -54,8 +54,10 @@ class WordEmbedding:
 
     # returns matrix of all word embeddings for visualization purposes
     def get_matrix(self):
-
         return self.vecs
+
+    def get_index(self):
+        return self.index
 
     def reindex(self):
         self.index = {w: i for i, w in enumerate(self.words)}
