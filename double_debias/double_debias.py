@@ -9,6 +9,10 @@ import scipy
 import codecs, json
 import operator
 
+definitional_pairs = [['she', 'he'], ['herself', 'himself'], ['her', 'his'], ['daughter', 'son'],
+                      ['girl', 'boy'], ['mother', 'father'], ['woman', 'man'], ['mary', 'john'],
+                      ['gal', 'guy'], ['female', 'male']]
+
 
 def load_glove(path):
     print("Loading word embedding...")
@@ -30,48 +34,16 @@ def load_glove(path):
     return wv, w2i, vocab
 
 
-wv, w2i, vocab = load_glove('../embedding/w2v_gnews_small.txt')
-
-gender_specific = []
-with open('./data/male_word_file.txt') as f:
-    for l in f:
-        gender_specific.append(l.strip())
-with open('./data/female_word_file.txt') as f:
-    for l in f:
-        gender_specific.append(l.strip())
-
-with codecs.open('./data/gender_specific_full.json') as f:
-    gender_specific.extend(json.load(f))
-
-definitional_pairs = [['she', 'he'], ['herself', 'himself'], ['her', 'his'], ['daughter', 'son'],
-                      ['girl', 'boy'], ['mother', 'father'], ['woman', 'man'], ['mary', 'john'],
-                      ['gal', 'guy'], ['female', 'male']]
-definitional_words = []
-for pair in definitional_pairs:
-    for word in pair:
-        definitional_words.append(word)
-
-exclude_words = gender_specific
-vocab_limit, wv_limit, w2i_limit = limit_vocab(wv, w2i, vocab, exclude=exclude_words)
-
-# compute original
-he_embed = wv[w2i['he'], :]
-she_embed = wv[w2i['she'], :]
-
-
 def simi(a, b):
     return 1 - scipy.spatial.distance.cosine(a, b)
 
 
-def compute_bias_by_projection(wv, w2i, vocab):
+def compute_bias_by_projection(wv, w2i, vocab, he_embed, she_embed):
     d = {}
     for w in vocab:
         u = wv[w2i[w], :]
         d[w] = simi(u, he_embed) - simi(u, she_embed)
     return d
-
-
-gender_bias_bef = compute_bias_by_projection(wv_limit, w2i_limit, vocab_limit)
 
 
 # debias
@@ -89,11 +61,7 @@ def my_pca(wv):
     return main_pca
 
 
-main_pca = my_pca(wv)
-wv_mean = np.mean(np.array(wv), axis=0)
-
-
-def hard_debias(wv, w2i, w2i_partial, vocab_partial, component_ids):
+def hard_debias(wv, w2i, main_pca, wv_mean, w2i_partial, vocab_partial, component_ids):
     D = []
 
     for i in component_ids:
@@ -124,57 +92,53 @@ def hard_debias(wv, w2i, w2i_partial, vocab_partial, component_ids):
     return wv_debiased
 
 
-def cluster_and_visualize(words, X, random_state, y_true, num=2):
-    kmeans = KMeans(n_clusters=num, random_state=random_state).fit(X)
-    y_pred = kmeans.predict(X)
-    correct = [1 if item1 == item2 else 0 for (item1, item2) in zip(y_true, y_pred)]
-    preci = max(sum(correct) / float(len(correct)), 1 - sum(correct) / float(len(correct)))
-    print('precision', preci)
+if __name__ == '__main__':
+    wv, w2i, vocab = load_glove('../embedding/w2v_gnews_small.txt')
 
-    return kmeans, y_pred, X, preci
+    exclude_words = []
+    with open('./data/male_word_file.txt') as f:
+        for l in f:
+            exclude_words.append(l.strip())
+    with open('./data/female_word_file.txt') as f:
+        for l in f:
+            exclude_words.append(l.strip())
 
+    with codecs.open('./data/gender_specific_full.json') as f:
+        exclude_words.extend(json.load(f))
 
-size = 1000
-sorted_g = sorted(gender_bias_bef.items(), key=operator.itemgetter(1))
-female = [item[0] for item in sorted_g[:size]]
-male = [item[0] for item in sorted_g[-size:]]
-y_true = [1] * size + [0] * size
+    definitional_words = []
+    for pair in definitional_pairs:
+        for word in pair:
+            definitional_words.append(word)
 
-c_vocab = list(set(male + female + [word for word in definitional_words if word in w2i]))
-c_w2i = dict()
-for idx, w in enumerate(c_vocab):
-    c_w2i[w] = idx
+    vocab_limit, wv_limit, w2i_limit = limit_vocab(wv, w2i, vocab, exclude=exclude_words)
 
-precisions = []
+    # compute original
+    he_embed = wv[w2i['he'], :]
+    she_embed = wv[w2i['she'], :]
 
-for component_id in range(20):
-    # print('component id: ', component_id)
+    gender_bias_bef = compute_bias_by_projection(wv_limit, w2i_limit, vocab_limit, he_embed, she_embed)
+    main_pca = my_pca(wv)
+    wv_mean = np.mean(np.array(wv), axis=0)
 
-    wv_debiased = hard_debias(wv, w2i, w2i_partial=c_w2i, vocab_partial=c_vocab, component_ids=[component_id])
-    # _, _, _, preci = cluster_and_visualize(male + female,
-    #                                        extract_vectors(male + female, wv_debiased, c_w2i), 1, y_true)
-    # precisions.append(preci)
+    size = 1000
+    sorted_g = sorted(gender_bias_bef.items(), key=operator.itemgetter(1))
+    female = [item[0] for item in sorted_g[:size]]
+    male = [item[0] for item in sorted_g[-size:]]
 
-filename = '../debiased_we/double_hd_we.txt'
-with open(filename, "w") as f:
-    f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv_debiased)]))
-print("Wrote", wv.shape[0], "words to", filename)
+    c_vocab = list(set(male + female + [word for word in definitional_words if word in w2i]))
+    c_w2i = dict()
+    for idx, w in enumerate(c_vocab):
+        c_w2i[w] = idx
 
-# # Create some mock data
-# t = np.arange(1, 21)
-# data1 = precisions
-#
-# fig, ax1 = plt.subplots(figsize=(6, 2.8))
-#
-# color = 'red'
-# ax1.set_xlabel('Project out the D-th directions', fontsize=17)
-# ax1.set_ylabel('accuracy', fontsize=17)
-# ax1.scatter(t, data1, color=color, label='GloVe', marker='x', s=60)
-# plt.xticks([2, 4, 6, 8, 10, 12, 14, 16, 18, 20], fontsize=15)
-# ax1.tick_params(axis='y', labelsize=14)
-# ax1.set_ylim(0.65, 0.84)
-# ax1.legend(loc='lower right', frameon=True, fontsize='large')
-# ax1.grid(axis='y')
-#
-# fig.tight_layout()  # otherwise the right y-label is slightly clipped
-# plt.show()
+    for component_id in range(20):
+        wv_debiased = hard_debias(wv, w2i, main_pca, wv_mean, w2i_partial=c_w2i, vocab_partial=c_vocab,
+                                  component_ids=[component_id])
+
+    filename = '../debiased_we/double_hd_we.txt'
+    print("size of vocab:", len(vocab))
+    print("size of wv: ", len(wv))
+    print("size of wv_debiased: ", len(wv_debiased))
+    with open(filename, "w") as f:
+        f.write("\n".join([w + " " + " ".join([str(x) for x in v]) for w, v in zip(vocab, wv_debiased)]))
+    print("Wrote", len(wv_debiased), "words to", filename)

@@ -174,8 +174,9 @@ if __name__ == "__main__":
     # p_values = w2v_weat_eval(E, defs, target_words)
     # print(p_values)  # save somewhere?
 
+    OE = WordEmbedding(we_file_path)
     DHE = WordEmbedding(dhwe_file_path)
-    matrix, index = merge_dhd_hd(HE, DHE)
+    matrix, index = merge_dhd_hd(OE, DHE)
     DHE.overwrite_matrix(matrix)
     DHE.overwrite_index(index)
     p_values = w2v_weat_eval(DHE, defs, target_words)

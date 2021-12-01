@@ -52,7 +52,7 @@ class WordEmbedding:
         if max(norms)-min(norms) > 0.0001:
             self.normalize()
 
-    # returns matrix of all word embeddings for visualization purposes
+    # returns matrix of all word embedding for visualization purposes
     def get_matrix(self):
         return self.vecs
 
